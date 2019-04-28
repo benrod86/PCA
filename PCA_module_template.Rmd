@@ -1,0 +1,184 @@
+---
+title: "TITLE"
+output:
+    html_document:
+      css: ../github.css
+      df_print: default
+      highlight: pygments
+      keep_md: yes
+      theme: cosmo
+---
+
+<script src="../hideOutput.js"></script>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = TRUE,
+	message = TRUE,
+	comment = "##",
+	prompt = FALSE,
+	tidy = TRUE,
+	tidy.opts = list(blank = FALSE, width.cutoff = 75),
+	fig.path = "img/",
+	fig.align = "center"
+)
+```
+
+#  Principal Components Analysis (PCA)
+
+## Preliminaries
+- Install this package in ***R***: [{curl},{ggplot2}](url)
+```{r}
+library(curl)
+library(ggplot2)
+```
+
+
+Principal component analysis (PCA) is a statistical method used to reduce the dimensionality of a dataset. This is done by finding linear combinations (principal components) of the variables in a dataset which maximize that amount of variability described by each component. The first principal component is constructed to account for as much of the spread in the data as possible. Each subsequent PC is calculated in the same manner but under a requirement that it is orthogonal (and therefore uncorrelated) to the previous PC, should account for the maximum amount of the remaining variance in the data. Generally the first couple of PCs will be able to account for a large amount of the overal variability in the dataset. The PCs can then be used to easily visualize the dataset in a manner that accounts for all of the different variables originally measured. 
+PCA is useful when you have a dataset that either has a large number of variables, and/or you have variables that have been measured in differeng scales. A couple of inportant components of a PCA are Eigenvectors, Eigenvalues, and PC Scores. 
+
+There are a number of different packages/functions that will do a PCA and help visualize it in different ways
+ - prcomp() function in base R
+ - princomp() function  in base R
+ - PCA() function in the package "FactoMineR"
+ - "Factoextra" package for visualizing PCA results
+ - "ggbiplot" package for visualizing PCA easily
+ - phyl.pca() function in "phytools" package" for conducting a phylogenetic PCA
+
+## Objectives
+
+> The objective of this module is to explain what a principal components analysis (PCA) is, how to conduct a PCA in R, and how to plot the results from a PCA in R.
+
+## Important terms
+
+* Eigenvectors - the direction in which the particular PC is oriented.
+
+* Eigenvalues - the corresponding amount of variace that is accounted for by a each PC.
+
+* PC scores - New variables calculated by multiplying the original variables measured for each datapoint by the eigenvectors, and then summing them together. PC scores are what can be plotted to visualize the data after reducing the dimensionality of it
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Adding a datapoint to a PCA
+
+You have a dataset that measures different variables of tooth shape that are argued to correspond with physical processing of food and different types of diet. You want to run a PCA to see if these variables can describe differences in the diet of some platyrrhine primates that have different diets. 
+
+Also, suppose you were lucky enough to find a fossil of a lower second molar of what appears to be a new genus of primate while conducting fieldwork over the summer in Wyoming and it strangely resembles a platyrrhine primate. You want to see where it falls in with other taxa have been already analyzed using some metrics which. How would you go about this?  
+
+The variables measured for the new fossil which you have decided to name "Wyomingcebus" are:
+SR = 2.68, Energy = 120, RFI = 1.6, and OPC = 43.
+
+The dataset you are using can be loaded with the following code:
+```{r}
+f <- curl("https://raw.githubusercontent.com/benrod86/PCA/master/Pitheciine_Tooth_Data.csv")
+z <- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = TRUE)
+head(z)
+```
+You can see that the variables that we are interested in are in columns 4:7
+
+Now you can run the PCA with the desired variables (SR, Energy, RFI, OPC) and with the variables centered and scaled
+```{r}
+z.pca <- prcomp(z[,4:7], center = TRUE, scale. = TRUE)
+
+## Inspect the results of the PCA
+z.pca
+summary(z.pca)
+```
+
+
+Plot the results of the first two principal components with 95% confidence ellipses
+```{r}
+z2 <- as.data.frame(z.pca$x) # Extract the PCA scores for each sample into a new dataframe
+z2$Genus <-  z$Genus # reattach the genera of each datapoint
+head(z2) # Make sure it looks right
+
+
+## Plot the first two PC scores for each datapoint
+pcaplot <- ggplot(data = z2, mapping = aes(x  = PC1, y = PC2, shape = Genus, col = Genus, label= Genus)) +
+  geom_point() + stat_ellipse(geom = "polygon", alpha = .25, aes(fill = Genus), level = 0.95)
+pcaplot
+```
+
+Now you can add the data for the new fossil
+
+First you have to make a dataframe for the new fossil with the measured values, and calculate the PC scores for them. 
+```{r}
+Wyomingcebus <- cbind(2.68, 120, 1.6, 43)
+Wyomingcebus <- as.data.frame(Wyomingcebus)
+Wyomingcebus <- scale(Wyomingcebus[1:4], z.pca$center, z.pca$scale) %*% z.pca$rotation 
+Wyomingcebus
+```
+
+Next you need to add the name of the new genus to the dataframe, and then rbind it to the original set of PC scores
+```{r}
+Wyomingcebus <- as.data.frame(Wyomingcebus)
+Wyomingcebus$Genus <- "Wyomingcebus"
+Wyomingcebus
+z3 <- rbind(z2, Wyomingcebus)
+tail(z3)
+```
+
+Finally re-plot the PC1 and PC2 scoes with the new Genus 
+```{r}
+pcaplot <- ggplot(data = z3, mapping = aes(x  = PC1, y = PC2, shape = Genus, col = Genus, label= Genus)) + geom_point()
+pcaplot <- pcaplot + stat_ellipse(geom = "polygon", alpha = .25, aes(fill = Genus), level = 0.95)
+pcaplot <- pcaplot + geom_text(data= subset(z3, Genus == "Wyomingcebus"), aes(label=Genus), hjust= -.1, vjust= .5)
+pcaplot
+```
+
+
+
+
+#### Challenge
+You have just discovered a mandible of a new fossil primate, and you want to add it to the original dataset
+You have meauserd the same variables and the values are as follows: SR = 2.73, Energy = 123, RFI = 1.99, and OPCR = 89.125.
+
+Calculate the PC scores for the new specimen, add it to the dataset, and plot it so that you can visualize if the dental variables you measured place it within any of the extant genera.
+
+<div class="fold s o">
+```{r}
+# First calculate the PC scores
+NewFossil <- cbind(2.73, 123, 1.99, 89.125)
+NewFossil <- as.data.frame(NewFossil)
+NewFossil <- scale(NewFossil[1:4], z.pca$center, z.pca$scale) %*% z.pca$rotation 
+NewFossil
+
+# Second add them to the original dataset of PC scores
+NewFossil <- as.data.frame(NewFossil)
+NewFossil$Genus <- "NewFossil"
+NewFossil
+z3 <- rbind(z2, NewFossil)
+tail(z3)
+
+# Plot everything
+pcaplot <- ggplot(data = z3, mapping = aes(x  = PC1, y = PC2, shape = Genus, col = Genus, label= Genus)) + geom_point()
+pcaplot <- pcaplot + stat_ellipse(geom = "polygon", alpha = .25, aes(fill = Genus), level = 0.95)
+pcaplot <- pcaplot + geom_text(data= subset(z3, Genus == "NewFossil"), aes(label=Genus), hjust= -.1, vjust= .5)
+pcaplot
+```
+</div>
+
+
+
+## Concept Review
+* Point 1
+* Point 2
+* Adding a new datapoint to a PCA
