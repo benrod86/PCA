@@ -1,6 +1,6 @@
 ---
-title: "Untitled"
-author: "Ben Rodwell"
+title: "PCA"
+author: "Joha, Madelynne, and Ben"
 date: "April 23, 2019"
 output: html_document
 ---
